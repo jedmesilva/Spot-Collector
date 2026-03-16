@@ -90,7 +90,7 @@ function WebSpotCard({
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { spots, collectSpot, collectedCount, nearbyCount } = useSpots();
+  const { spots, collectSpot, collectedCount } = useSpots();
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [walletVisible, setWalletVisible] = useState(false);
   const mapRef = useRef<any>(null);
@@ -218,23 +218,9 @@ export default function MapScreen() {
         </ScrollView>
       )}
 
-      {/* Header — always visible */}
-      <View style={[styles.header, { paddingTop: topInset + 10 }]}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.appName}>SpotMap</Text>
-            <View style={styles.statsRow}>
-              <View style={styles.statChip}>
-                <MaterialCommunityIcons
-                  name="map-marker-radius"
-                  size={13}
-                  color={Colors.accent}
-                />
-                <Text style={styles.statText}>{nearbyCount} nearby</Text>
-              </View>
-            </View>
-          </View>
-
+      {/* Floating buttons column (wallet + recenter) — native only */}
+      {isNative && (
+        <View style={[styles.floatingBtns, { bottom: 24 + bottomInset }]}>
           <Animated.View style={{ transform: [{ scale: collectBounce }] }}>
             <Pressable
               onPress={handleWallet}
@@ -251,12 +237,7 @@ export default function MapScreen() {
               )}
             </Pressable>
           </Animated.View>
-        </View>
-      </View>
 
-      {/* Recenter button — native only */}
-      {isNative && (
-        <View style={[styles.floatingBtns, { bottom: 90 + bottomInset }]}>
           <Pressable
             onPress={handleCenterMap}
             style={({ pressed }) => [
@@ -275,7 +256,7 @@ export default function MapScreen() {
 
       {/* Color legend — native only */}
       {isNative && (
-        <View style={[styles.legend, { bottom: 84 + bottomInset }]}>
+        <View style={[styles.legend, { bottom: 24 + bottomInset }]}>
           {(["purple", "orange", "green"] as const).map((color) => {
             const count = spots.filter(
               (s) => s.color === color && !s.collected
@@ -338,50 +319,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     marginBottom: 4,
   },
-  header: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(255,255,255,0.96)",
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
-    zIndex: 5,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerLeft: { gap: 4 },
-  appName: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: Colors.primary,
-    fontFamily: "Inter_700Bold",
-    letterSpacing: -0.5,
-  },
-  statsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  statChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.accent + "14",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  statText: {
-    fontSize: 12,
-    color: Colors.accent,
-    fontWeight: "600",
-    fontFamily: "Inter_600SemiBold",
-  },
   walletBtn: {
     width: 48,
     height: 48,
@@ -415,7 +352,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontFamily: "Inter_700Bold",
   },
-  floatingBtns: { position: "absolute", right: 16 },
+  floatingBtns: {
+    position: "absolute",
+    right: 16,
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 10,
+  },
   floatingBtn: {
     width: 46,
     height: 46,
