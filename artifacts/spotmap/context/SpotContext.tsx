@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -39,98 +40,110 @@ interface SpotsContextValue {
 }
 
 const COLLECTION_RADIUS_METERS = 200;
-const STORAGE_KEY = "spotmap:collected";
+const SPOTS_STORAGE_KEY = "spotmap:spots_v2";
+const COLLECTED_KEY = "spotmap:collected";
 
-const INITIAL_SPOTS: Spot[] = [
+const SPOT_TEMPLATES = [
   {
     id: "spot-1",
-    name: "Desconto Starbucks",
-    type: "coupon",
-    color: "green",
-    description: "20% de desconto em qualquer bebida na Avenida Paulista.",
+    name: "Desconto Especial",
+    type: "coupon" as SpotType,
+    color: "green" as SpotColor,
+    description: "20% de desconto em qualquer compra na loja parceira mais próxima.",
     reward: "20% OFF",
-    latitude: -23.5614,
-    longitude: -46.6556,
-    collected: false,
   },
   {
     id: "spot-2",
     name: "Caixa Misteriosa",
-    type: "mystery",
-    color: "purple",
+    type: "mystery" as SpotType,
+    color: "purple" as SpotColor,
     description: "O que estará dentro? Só coletando para descobrir!",
     reward: "Surpresa",
-    latitude: -23.5648,
-    longitude: -46.6489,
-    collected: false,
   },
   {
     id: "spot-3",
     name: "R$ 10 Cashback",
-    type: "cash",
-    color: "orange",
+    type: "cash" as SpotType,
+    color: "orange" as SpotColor,
     description: "Crédito direto na sua conta ao coletar este Spot.",
     reward: "R$ 10,00",
-    latitude: -23.5599,
-    longitude: -46.6611,
-    collected: false,
   },
   {
     id: "spot-4",
     name: "Fone Bluetooth",
-    type: "product",
-    color: "purple",
+    type: "product" as SpotType,
+    color: "purple" as SpotColor,
     description: "Fone de ouvido sem fio para retirar na loja parceira.",
     reward: "Produto",
-    latitude: -23.5671,
-    longitude: -46.6522,
-    collected: false,
   },
   {
     id: "spot-5",
-    name: "Cupom iFood",
-    type: "coupon",
-    color: "orange",
-    description: "Ganhe frete grátis no próximo pedido via iFood.",
+    name: "Cupom de Frete",
+    type: "coupon" as SpotType,
+    color: "orange" as SpotColor,
+    description: "Ganhe frete grátis no próximo pedido em delivery.",
     reward: "Frete Grátis",
-    latitude: -23.5583,
-    longitude: -46.6574,
-    collected: false,
   },
   {
     id: "spot-6",
     name: "Pacote Premium",
-    type: "package",
-    color: "green",
+    type: "package" as SpotType,
+    color: "green" as SpotColor,
     description: "Um mês de assinatura premium em algum serviço surpresa.",
     reward: "1 mês Premium",
-    latitude: -23.5632,
-    longitude: -46.6498,
-    collected: false,
   },
   {
     id: "spot-7",
     name: "Tag Exclusiva",
-    type: "tag",
-    color: "purple",
+    type: "tag" as SpotType,
+    color: "purple" as SpotColor,
     description: "Colecione esta tag exclusiva do SpotMap para o seu perfil.",
     reward: "Tag Rara",
-    latitude: -23.5657,
-    longitude: -46.6581,
-    collected: false,
   },
   {
     id: "spot-8",
     name: "R$ 25 Cashback",
-    type: "cash",
-    color: "green",
+    type: "cash" as SpotType,
+    color: "green" as SpotColor,
     description: "Crédito especial para usar em lojas parceiras.",
     reward: "R$ 25,00",
-    latitude: -23.5608,
-    longitude: -46.6535,
-    collected: false,
   },
 ];
+
+// Scatter spots around a center point within a max radius (in meters)
+function generateSpotsAround(
+  centerLat: number,
+  centerLon: number
+): Spot[] {
+  // Distribute spots in rings so they feel natural
+  const offsets = [
+    { distM: 180, angleDeg: 30 },
+    { distM: 320, angleDeg: 110 },
+    { distM: 250, angleDeg: 200 },
+    { distM: 450, angleDeg: 300 },
+    { distM: 150, angleDeg: 70 },
+    { distM: 500, angleDeg: 160 },
+    { distM: 380, angleDeg: 250 },
+    { distM: 280, angleDeg: 340 },
+  ];
+
+  return SPOT_TEMPLATES.map((template, i) => {
+    const { distM, angleDeg } = offsets[i % offsets.length];
+    const angleRad = (angleDeg * Math.PI) / 180;
+    // 1 degree lat ≈ 111320 m
+    const deltaLat = (distM * Math.cos(angleRad)) / 111320;
+    // 1 degree lon ≈ 111320 * cos(lat) m
+    const deltaLon =
+      (distM * Math.sin(angleRad)) / (111320 * Math.cos((centerLat * Math.PI) / 180));
+
+    return {
+      ...template,
+      latitude: centerLat + deltaLat,
+      longitude: centerLon + deltaLon,
+      collected: false,
+    };
+  });
+}
 
 function haversineDistance(
   lat1: number,
@@ -151,21 +164,36 @@ function haversineDistance(
 const SpotsContext = createContext<SpotsContextValue | null>(null);
 
 export function SpotProvider({ children }: { children: React.ReactNode }) {
-  const [spots, setSpots] = useState<Spot[]>(INITIAL_SPOTS);
-  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [spots, setSpots] = useState<Spot[]>([]);
+  const [userLocation, setUserLocationState] = useState<UserLocation | null>(null);
+  const spotsGenerated = useRef(false);
 
+  // Load persisted spots on mount
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (!raw) return;
+    (async () => {
       try {
-        const collected: string[] = JSON.parse(raw);
-        setSpots((prev) =>
-          prev.map((s) =>
-            collected.includes(s.id) ? { ...s, collected: true } : s
-          )
-        );
+        const raw = await AsyncStorage.getItem(SPOTS_STORAGE_KEY);
+        if (raw) {
+          const saved: Spot[] = JSON.parse(raw);
+          if (saved && saved.length > 0) {
+            setSpots(saved);
+            spotsGenerated.current = true;
+          }
+        }
       } catch {}
-    });
+    })();
+  }, []);
+
+  const setUserLocation = useCallback((loc: UserLocation) => {
+    setUserLocationState(loc);
+
+    // Generate spots around the user on first location fix (if not yet generated)
+    if (!spotsGenerated.current) {
+      spotsGenerated.current = true;
+      const generated = generateSpotsAround(loc.latitude, loc.longitude);
+      setSpots(generated);
+      AsyncStorage.setItem(SPOTS_STORAGE_KEY, JSON.stringify(generated)).catch(() => {});
+    }
   }, []);
 
   const collectSpot = useCallback(async (id: string) => {
@@ -173,10 +201,7 @@ export function SpotProvider({ children }: { children: React.ReactNode }) {
       const updated = prev.map((s) =>
         s.id === id ? { ...s, collected: true, collectedAt: Date.now() } : s
       );
-      const collectedIds = updated
-        .filter((s) => s.collected)
-        .map((s) => s.id);
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(collectedIds));
+      AsyncStorage.setItem(SPOTS_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
   }, []);

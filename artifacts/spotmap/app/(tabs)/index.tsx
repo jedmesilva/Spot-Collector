@@ -116,7 +116,7 @@ export default function MapScreen() {
       };
       setUserLocation(loc);
       mapRef.current?.animateToRegion(
-        { ...loc, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+        { ...loc, latitudeDelta: 0.018, longitudeDelta: 0.018 },
         800
       );
 
@@ -173,7 +173,7 @@ export default function MapScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (userLocation) {
       mapRef.current?.animateToRegion(
-        { ...userLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+        { ...userLocation, latitudeDelta: 0.018, longitudeDelta: 0.018 },
         600
       );
     } else {
@@ -184,8 +184,8 @@ export default function MapScreen() {
           const region = {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+            latitudeDelta: 0.018,
+            longitudeDelta: 0.018,
           };
           setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
           mapRef.current?.animateToRegion(region, 600);
@@ -242,10 +242,25 @@ export default function MapScreen() {
               Escaneie o QR code no Expo Go para explorar o mapa ao vivo
             </Text>
           </View>
-          <Text style={styles.sectionTitle}>Todos os Spots</Text>
-          {spots.map((spot) => (
-            <WebSpotCard key={spot.id} spot={spot} onPress={handleSpotPress} />
-          ))}
+          {spots.length === 0 ? (
+            <View style={styles.mapHint}>
+              <MaterialCommunityIcons
+                name="map-marker-question"
+                size={36}
+                color={Colors.accent}
+              />
+              <Text style={styles.mapHintText}>
+                Os spots são gerados ao redor da sua localização.{"\n"}Abra no Expo Go para ver o mapa completo.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.sectionTitle}>Todos os Spots</Text>
+              {spots.map((spot) => (
+                <WebSpotCard key={spot.id} spot={spot} onPress={handleSpotPress} />
+              ))}
+            </>
+          )}
         </ScrollView>
       )}
 
