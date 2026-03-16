@@ -38,7 +38,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.6576,
     description: "Um cupom exclusivo escondido perto do lago do parque.",
     reward: "30% OFF em qualquer loja parceira",
-    radius: 150,
+    radius: 5000,
     collected: false,
   },
   {
@@ -50,7 +50,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.6108,
     description: "Um prêmio misterioso guardado entre estas paredes históricas.",
     reward: "Surpresa! Descubra ao chegar.",
-    radius: 100,
+    radius: 5000,
     collected: false,
   },
   {
@@ -62,7 +62,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.6544,
     description: "Dinheiro em forma de crédito esperando por você.",
     reward: "R$ 15,00 em créditos na plataforma",
-    radius: 200,
+    radius: 5000,
     collected: false,
   },
   {
@@ -74,7 +74,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.6296,
     description: "Um produto exclusivo escondido entre as bancas.",
     reward: "Kit degustação de produtos artesanais",
-    radius: 120,
+    radius: 5000,
     collected: false,
   },
   {
@@ -86,7 +86,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.6333,
     description: "A arte esconde mais do que pinturas aqui.",
     reward: "Surpresa! Descubra ao chegar.",
-    radius: 100,
+    radius: 5000,
     collected: false,
   },
   {
@@ -98,7 +98,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.6896,
     description: "Arte de rua e graffiti marcam este bairro criativo.",
     reward: "1 consumação grátis em bar parceiro",
-    radius: 150,
+    radius: 5000,
     collected: false,
   },
   {
@@ -110,7 +110,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.634,
     description: "Tesouros culturais escondidos no bairro japonês de SP.",
     reward: "Box de produtos japoneses importados",
-    radius: 130,
+    radius: 5000,
     collected: false,
   },
   {
@@ -122,7 +122,7 @@ const INITIAL_SPOTS: Spot[] = [
     longitude: -46.6717,
     description: "Avenidas sofisticadas escondem recompensas em dinheiro.",
     reward: "R$ 25,00 em créditos na plataforma",
-    radius: 180,
+    radius: 5000,
     collected: false,
   },
 ];
