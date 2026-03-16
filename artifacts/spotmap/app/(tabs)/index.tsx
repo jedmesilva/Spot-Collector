@@ -27,19 +27,20 @@ const SAO_PAULO_REGION: Region = {
   longitudeDelta: 0.08,
 };
 
-const SPOT_COLOR_MAP: Record<string, string> = {
-  purple: Colors.spots.purple,
-  orange: Colors.spots.orange,
-  green: Colors.spots.green,
-};
-
-const TYPE_ICON_MAP: Record<
-  string,
-  keyof typeof MaterialCommunityIcons.glyphMap
-> = {
+const TYPE_ICON_MAP: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  coupon: "ticket-percent",
+  product: "gift",
+  cash: "cash",
+  mystery: "help-circle",
   package: "package-variant-closed",
   tag: "tag",
-  mystery: "help-circle",
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  coupon: "Cupom",
+  product: "Produto",
+  cash: "Dinheiro",
+  mystery: "Mistério",
 };
 
 function WebSpotCard({
@@ -49,7 +50,7 @@ function WebSpotCard({
   spot: Spot;
   onPress: (s: Spot) => void;
 }) {
-  const color = SPOT_COLOR_MAP[spot.color] ?? Colors.accent;
+  const color = Colors.spots[spot.color as keyof typeof Colors.spots] ?? Colors.accent;
   const icon = TYPE_ICON_MAP[spot.type] ?? "help-circle";
   return (
     <Pressable
@@ -69,7 +70,9 @@ function WebSpotCard({
         <Text style={styles.spotCardName} numberOfLines={1}>
           {spot.name}
         </Text>
-        <Text style={styles.spotCardType}>{spot.type}</Text>
+        <Text style={styles.spotCardType}>
+          {TYPE_LABEL[spot.type] ?? spot.type}
+        </Text>
       </View>
       {spot.collected ? (
         <MaterialCommunityIcons
@@ -90,29 +93,51 @@ function WebSpotCard({
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { spots, collectSpot, collectedCount } = useSpots();
+  const { spots, collectSpot, collectedCount, setUserLocation, userLocation } = useSpots();
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [walletVisible, setWalletVisible] = useState(false);
   const mapRef = useRef<any>(null);
   const collectBounce = useRef(new Animated.Value(1)).current;
-  const [userLocation, setUserLocation] = useState<Region | null>(null);
+  const locationSub = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
+
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        const loc = await Location.getCurrentPositionAsync({});
-        const region: Region = {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        };
-        setUserLocation(region);
-        mapRef.current?.animateToRegion(region, 800);
-      }
+      if (status !== "granted") return;
+
+      const initial = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const loc = {
+        latitude: initial.coords.latitude,
+        longitude: initial.coords.longitude,
+      };
+      setUserLocation(loc);
+      mapRef.current?.animateToRegion(
+        { ...loc, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+        800
+      );
+
+      locationSub.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          distanceInterval: 10,
+          timeInterval: 5000,
+        },
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        }
+      );
     })();
+
+    return () => {
+      locationSub.current?.remove();
+    };
   }, []);
 
   const handleSpotPress = useCallback((spot: Spot) => {
@@ -147,24 +172,25 @@ export default function MapScreen() {
   const handleCenterMap = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (userLocation) {
-      mapRef.current?.animateToRegion(userLocation, 600);
+      mapRef.current?.animateToRegion(
+        { ...userLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+        600
+      );
     } else {
-      // Try to get location on demand if not yet available
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
           const loc = await Location.getCurrentPositionAsync({});
-          const region: Region = {
+          const region = {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
             latitudeDelta: 0.01,
             longitudeDelta: 0.01,
           };
-          setUserLocation(region);
+          setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
           mapRef.current?.animateToRegion(region, 600);
         }
       } catch {
-        // Fall back to São Paulo if location unavailable
         mapRef.current?.animateToRegion(SAO_PAULO_REGION, 600);
       }
     }
@@ -208,14 +234,26 @@ export default function MapScreen() {
               color={Colors.accent}
             />
             <Text style={styles.mapHintText}>
-              Scan the QR code in Expo Go on your phone to explore the live map
+              Escaneie o QR code no Expo Go para explorar o mapa ao vivo
             </Text>
           </View>
-          <Text style={styles.sectionTitle}>All Spots</Text>
+          <Text style={styles.sectionTitle}>Todos os Spots</Text>
           {spots.map((spot) => (
             <WebSpotCard key={spot.id} spot={spot} onPress={handleSpotPress} />
           ))}
         </ScrollView>
+      )}
+
+      {/* User avatar — top left */}
+      {isNative && (
+        <Pressable
+          style={[styles.avatarBtn, { top: topInset + 12 }]}
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+        >
+          <View style={styles.avatarInner}>
+            <MaterialCommunityIcons name="account" size={26} color="#fff" />
+          </View>
+        </Pressable>
       )}
 
       {/* Floating buttons column (wallet + recenter) — native only */}
@@ -252,18 +290,6 @@ export default function MapScreen() {
             />
           </Pressable>
         </View>
-      )}
-
-      {/* User avatar — top left */}
-      {isNative && (
-        <Pressable
-          style={[styles.avatarBtn, { top: topInset + 12 }]}
-          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-        >
-          <View style={styles.avatarInner}>
-            <MaterialCommunityIcons name="account" size={26} color="#fff" />
-          </View>
-        </Pressable>
       )}
 
       <SpotBottomSheet
@@ -305,6 +331,26 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontFamily: "Inter_700Bold",
     marginBottom: 4,
+  },
+  avatarBtn: {
+    position: "absolute",
+    left: 16,
+    zIndex: 10,
+  },
+  avatarInner: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 2.5,
+    borderColor: "#fff",
   },
   walletBtn: {
     width: 48,
@@ -358,26 +404,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 6,
-  },
-  avatarBtn: {
-    position: "absolute",
-    left: 16,
-    zIndex: 10,
-  },
-  avatarInner: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 2.5,
-    borderColor: "#fff",
   },
   spotCard: {
     backgroundColor: "#fff",

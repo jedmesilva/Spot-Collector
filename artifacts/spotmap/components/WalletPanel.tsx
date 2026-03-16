@@ -25,9 +25,12 @@ const SPOT_COLOR_MAP: Record<string, string> = {
 };
 
 const TYPE_ICON_MAP: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  coupon: "ticket-percent",
+  product: "gift",
+  cash: "cash",
+  mystery: "help-circle",
   package: "package-variant-closed",
   tag: "tag",
-  mystery: "help-circle",
 };
 
 interface Props {

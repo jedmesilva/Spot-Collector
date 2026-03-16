@@ -13,10 +13,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { Spot } from "@/context/SpotContext";
+import { Spot, useSpots } from "@/context/SpotContext";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const SHEET_HEIGHT = 310;
+const SHEET_HEIGHT = 360;
 
 const SPOT_COLOR_MAP: Record<string, string> = {
   purple: Colors.spots.purple,
@@ -25,16 +25,27 @@ const SPOT_COLOR_MAP: Record<string, string> = {
 };
 
 const TYPE_ICON_MAP: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  coupon: "ticket-percent",
+  product: "gift",
+  cash: "cash",
+  mystery: "help-circle",
   package: "package-variant-closed",
   tag: "tag",
-  mystery: "help-circle",
 };
 
 const TYPE_LABEL: Record<string, string> = {
-  package: "Package",
+  coupon: "Cupom",
+  product: "Produto",
+  cash: "Dinheiro",
+  mystery: "Mistério",
+  package: "Pacote",
   tag: "Tag",
-  mystery: "Mystery",
 };
+
+function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
 
 interface Props {
   spot: Spot | null;
@@ -44,6 +55,7 @@ interface Props {
 
 export function SpotBottomSheet({ spot, onClose, onCollect }: Props) {
   const insets = useSafeAreaInsets();
+  const { isNearby, distanceTo } = useSpots();
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT + 100)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
 
@@ -107,6 +119,9 @@ export function SpotBottomSheet({ spot, onClose, onCollect }: Props) {
   const iconName = TYPE_ICON_MAP[spot.type] ?? "help-circle";
   const typeLabel = TYPE_LABEL[spot.type] ?? "Spot";
   const isAlreadyCollected = spot.collected || collected;
+  const nearby = isNearby(spot);
+  const distance = distanceTo(spot);
+  const canCollect = nearby && !isAlreadyCollected;
 
   return (
     <>
@@ -155,30 +170,86 @@ export function SpotBottomSheet({ spot, onClose, onCollect }: Props) {
 
         <Text style={styles.description}>{spot.description}</Text>
 
+        {/* Reward box */}
+        <View style={[styles.rewardBox, { borderColor: spotColor + "40", backgroundColor: spotColor + "0A" }]}>
+          <MaterialCommunityIcons
+            name={spot.type === "mystery" && !isAlreadyCollected ? "lock" : "gift-outline"}
+            size={18}
+            color={spotColor}
+          />
+          <Text style={[styles.rewardText, { color: spotColor }]}>
+            {spot.type === "mystery" && !isAlreadyCollected
+              ? "Recompensa misteriosa"
+              : spot.reward}
+          </Text>
+        </View>
+
+        {/* Distance / proximity status */}
+        {!isAlreadyCollected && (
+          <View style={[
+            styles.distanceRow,
+            { backgroundColor: nearby ? Colors.accentGreen + "12" : "#FFF3E0" }
+          ]}>
+            <MaterialCommunityIcons
+              name={nearby ? "map-marker-check" : "map-marker-distance"}
+              size={18}
+              color={nearby ? Colors.accentGreen : "#F57C00"}
+            />
+            <Text style={[styles.distanceText, { color: nearby ? Colors.accentGreen : "#F57C00" }]}>
+              {nearby
+                ? "Você está na área! Pode coletar."
+                : distance !== null
+                  ? `Ainda ${formatDistance(distance)} de distância`
+                  : "Localização necessária para coletar"}
+            </Text>
+          </View>
+        )}
+
         <Animated.View style={{ transform: [{ scale: collectAnim }] }}>
           <Pressable
-            onPress={handleCollect}
-            disabled={isAlreadyCollected}
+            onPress={canCollect ? handleCollect : () => {
+              if (!isAlreadyCollected) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            }}
             style={({ pressed }) => [
               styles.collectBtn,
               {
-                backgroundColor: isAlreadyCollected ? Colors.light.border : spotColor,
+                backgroundColor: isAlreadyCollected
+                  ? Colors.light.border
+                  : canCollect
+                    ? spotColor
+                    : "#E0E0E0",
                 opacity: pressed ? 0.88 : 1,
               },
             ]}
           >
             <MaterialCommunityIcons
-              name={isAlreadyCollected ? "check-circle" : "star-shooting"}
+              name={
+                isAlreadyCollected
+                  ? "check-circle"
+                  : canCollect
+                    ? "star-shooting"
+                    : "lock-outline"
+              }
               size={20}
-              color={isAlreadyCollected ? Colors.light.textSecondary : "#fff"}
+              color={isAlreadyCollected ? Colors.light.textSecondary : canCollect ? "#fff" : "#9E9E9E"}
             />
             <Text
               style={[
                 styles.collectBtnText,
-                { color: isAlreadyCollected ? Colors.light.textSecondary : "#fff" },
+                {
+                  color: isAlreadyCollected
+                    ? Colors.light.textSecondary
+                    : canCollect
+                      ? "#fff"
+                      : "#9E9E9E",
+                },
               ]}
             >
-              {isAlreadyCollected ? "Collected!" : "Collect Spot"}
+              {isAlreadyCollected
+                ? "Coletado!"
+                : canCollect
+                  ? "Coletar Spot"
+                  : "Chegue ao local para coletar"}
             </Text>
           </Pressable>
         </Animated.View>
@@ -264,7 +335,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.light.textSecondary,
     lineHeight: 22,
-    marginBottom: 22,
+    marginBottom: 14,
+    fontFamily: "Inter_400Regular",
+  },
+  rewardBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  rewardText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: "Inter_600SemiBold",
+  },
+  distanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  distanceText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "500",
     fontFamily: "Inter_400Regular",
   },
   collectBtn: {
