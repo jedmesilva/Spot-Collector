@@ -1,16 +1,31 @@
-// Web stub for react-native-maps
-import React from 'react';
-import { View } from 'react-native';
+import React from "react";
+import { View } from "react-native";
 
-export default function MapView(props) {
-  return React.createElement(View, { style: props.style });
+function MapView({ children, style }) {
+  return React.createElement(View, { style }, children);
 }
 
-export function Marker() { return null; }
-export function Polyline() { return null; }
-export function Polygon() { return null; }
-export function Circle() { return null; }
-export function Callout() { return null; }
-export function CalloutSubview() { return null; }
-export const PROVIDER_GOOGLE = 'google';
+MapView.Marker = function Marker() {
+  return null;
+};
+
+MapView.Callout = function Callout() {
+  return null;
+};
+
+MapView.Polyline = function Polyline() {
+  return null;
+};
+
+MapView.Circle = function Circle() {
+  return null;
+};
+
+export default MapView;
+
+export const Marker = MapView.Marker;
+export const Callout = MapView.Callout;
+export const Polyline = MapView.Polyline;
+export const Circle = MapView.Circle;
+export const PROVIDER_GOOGLE = "google";
 export const PROVIDER_DEFAULT = null;

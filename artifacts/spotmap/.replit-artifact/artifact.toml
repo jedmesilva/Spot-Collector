@@ -1,5 +1,5 @@
 kind = "mobile"
-previewPath = "/"
+previewPath = "/spotmap/"
 title = "SpotMap"
 version = "1.0.0"
 id = "artifacts/spotmap"
@@ -13,14 +13,14 @@ version = "1.0.0"
 ensurePreviewReachable = "/status"
 localPort = 25658
 name = "expo"
-paths = ["/"]
+paths = ["/spotmap/"]
 
 [services.development]
 run = "pnpm --filter @workspace/spotmap run dev"
 
 [services.env]
 PORT = "25658"
-BASE_PATH = "/"
+BASE_PATH = "/spotmap/"
 
 [services.production]
 build = ["pnpm", "--filter", "@workspace/spotmap", "run", "build"]

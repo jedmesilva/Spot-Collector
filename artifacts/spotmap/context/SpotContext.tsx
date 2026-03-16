@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 
-export type SpotType = "coupon" | "product" | "cash" | "mystery";
+export type SpotType = "coupon" | "product" | "cash" | "mystery" | "package" | "tag";
 export type SpotColor = "purple" | "orange" | "green";
 
 export interface Spot {
@@ -15,223 +15,211 @@ export interface Spot {
   name: string;
   type: SpotType;
   color: SpotColor;
-  latitude: number;
-  longitude: number;
   description: string;
   reward: string;
-  radius: number;
+  latitude: number;
+  longitude: number;
   collected: boolean;
+  collectedAt?: number;
 }
 
-export interface UserLocation {
+interface UserLocation {
   latitude: number;
   longitude: number;
 }
+
+interface SpotsContextValue {
+  spots: Spot[];
+  collectSpot: (id: string) => Promise<void>;
+  collectedCount: number;
+  setUserLocation: (loc: UserLocation) => void;
+  userLocation: UserLocation | null;
+  isNearby: (spot: Spot) => boolean;
+  distanceTo: (spot: Spot) => number;
+}
+
+const COLLECTION_RADIUS_METERS = 200;
+const STORAGE_KEY = "spotmap:collected";
 
 const INITIAL_SPOTS: Spot[] = [
   {
-    id: "1",
-    name: "Parque Ibirapuera",
+    id: "spot-1",
+    name: "Desconto Starbucks",
     type: "coupon",
     color: "green",
-    latitude: -23.5874,
-    longitude: -46.6576,
-    description: "Um cupom exclusivo escondido perto do lago do parque.",
-    reward: "30% OFF em qualquer loja parceira",
-    radius: 5000,
+    description: "20% de desconto em qualquer bebida na Avenida Paulista.",
+    reward: "20% OFF",
+    latitude: -23.5614,
+    longitude: -46.6556,
     collected: false,
   },
   {
-    id: "2",
-    name: "Museu do Ipiranga",
+    id: "spot-2",
+    name: "Caixa Misteriosa",
     type: "mystery",
     color: "purple",
-    latitude: -23.5857,
-    longitude: -46.6108,
-    description: "Um prêmio misterioso guardado entre estas paredes históricas.",
-    reward: "Surpresa! Descubra ao chegar.",
-    radius: 5000,
+    description: "O que estará dentro? Só coletando para descobrir!",
+    reward: "Surpresa",
+    latitude: -23.5648,
+    longitude: -46.6489,
     collected: false,
   },
   {
-    id: "3",
-    name: "Avenida Paulista",
+    id: "spot-3",
+    name: "R$ 10 Cashback",
     type: "cash",
     color: "orange",
-    latitude: -23.5631,
-    longitude: -46.6544,
-    description: "Dinheiro em forma de crédito esperando por você.",
-    reward: "R$ 15,00 em créditos na plataforma",
-    radius: 5000,
+    description: "Crédito direto na sua conta ao coletar este Spot.",
+    reward: "R$ 10,00",
+    latitude: -23.5599,
+    longitude: -46.6611,
     collected: false,
   },
   {
-    id: "4",
-    name: "Mercado Municipal",
-    type: "product",
-    color: "orange",
-    latitude: -23.5413,
-    longitude: -46.6296,
-    description: "Um produto exclusivo escondido entre as bancas.",
-    reward: "Kit degustação de produtos artesanais",
-    radius: 5000,
-    collected: false,
-  },
-  {
-    id: "5",
-    name: "Pinacoteca do Estado",
-    type: "mystery",
-    color: "purple",
-    latitude: -23.5344,
-    longitude: -46.6333,
-    description: "A arte esconde mais do que pinturas aqui.",
-    reward: "Surpresa! Descubra ao chegar.",
-    radius: 5000,
-    collected: false,
-  },
-  {
-    id: "6",
-    name: "Vila Madalena",
-    type: "coupon",
-    color: "green",
-    latitude: -23.5508,
-    longitude: -46.6896,
-    description: "Arte de rua e graffiti marcam este bairro criativo.",
-    reward: "1 consumação grátis em bar parceiro",
-    radius: 5000,
-    collected: false,
-  },
-  {
-    id: "7",
-    name: "Liberdade",
+    id: "spot-4",
+    name: "Fone Bluetooth",
     type: "product",
     color: "purple",
-    latitude: -23.5593,
-    longitude: -46.634,
-    description: "Tesouros culturais escondidos no bairro japonês de SP.",
-    reward: "Box de produtos japoneses importados",
-    radius: 5000,
-    collected: false,
-  },
-  {
-    id: "8",
-    name: "Jardins",
-    type: "cash",
-    color: "green",
+    description: "Fone de ouvido sem fio para retirar na loja parceira.",
+    reward: "Produto",
     latitude: -23.5671,
-    longitude: -46.6717,
-    description: "Avenidas sofisticadas escondem recompensas em dinheiro.",
-    reward: "R$ 25,00 em créditos na plataforma",
-    radius: 5000,
+    longitude: -46.6522,
+    collected: false,
+  },
+  {
+    id: "spot-5",
+    name: "Cupom iFood",
+    type: "coupon",
+    color: "orange",
+    description: "Ganhe frete grátis no próximo pedido via iFood.",
+    reward: "Frete Grátis",
+    latitude: -23.5583,
+    longitude: -46.6574,
+    collected: false,
+  },
+  {
+    id: "spot-6",
+    name: "Pacote Premium",
+    type: "package",
+    color: "green",
+    description: "Um mês de assinatura premium em algum serviço surpresa.",
+    reward: "1 mês Premium",
+    latitude: -23.5632,
+    longitude: -46.6498,
+    collected: false,
+  },
+  {
+    id: "spot-7",
+    name: "Tag Exclusiva",
+    type: "tag",
+    color: "purple",
+    description: "Colecione esta tag exclusiva do SpotMap para o seu perfil.",
+    reward: "Tag Rara",
+    latitude: -23.5657,
+    longitude: -46.6581,
+    collected: false,
+  },
+  {
+    id: "spot-8",
+    name: "R$ 25 Cashback",
+    type: "cash",
+    color: "green",
+    description: "Crédito especial para usar em lojas parceiras.",
+    reward: "R$ 25,00",
+    latitude: -23.5608,
+    longitude: -46.6535,
     collected: false,
   },
 ];
 
-export function getDistance(loc: UserLocation, spot: Spot): number {
+function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
   const R = 6371000;
-  const φ1 = (loc.latitude * Math.PI) / 180;
-  const φ2 = (spot.latitude * Math.PI) / 180;
-  const Δφ = ((spot.latitude - loc.latitude) * Math.PI) / 180;
-  const Δλ = ((spot.longitude - loc.longitude) * Math.PI) / 180;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
   const a =
-    Math.sin(Δφ / 2) ** 2 +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const STORAGE_KEY = "@spotmap_spots_v2";
-
-interface SpotContextValue {
-  spots: Spot[];
-  collectedCount: number;
-  userLocation: UserLocation | null;
-  setUserLocation: (loc: UserLocation | null) => void;
-  isNearby: (spot: Spot) => boolean;
-  distanceTo: (spot: Spot) => number | null;
-  collectSpot: (id: string) => void;
-  resetSpots: () => void;
-}
-
-const SpotContext = createContext<SpotContextValue | null>(null);
+const SpotsContext = createContext<SpotsContextValue | null>(null);
 
 export function SpotProvider({ children }: { children: React.ReactNode }) {
   const [spots, setSpots] = useState<Spot[]>(INITIAL_SPOTS);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].reward !== undefined) {
-            setSpots(parsed);
-          } else {
-            setSpots(INITIAL_SPOTS);
-          }
-        } catch {
-          setSpots(INITIAL_SPOTS);
-        }
-      }
+    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+      if (!raw) return;
+      try {
+        const collected: string[] = JSON.parse(raw);
+        setSpots((prev) =>
+          prev.map((s) =>
+            collected.includes(s.id) ? { ...s, collected: true } : s
+          )
+        );
+      } catch {}
     });
   }, []);
 
-  const saveSpots = useCallback((updated: Spot[]) => {
-    setSpots(updated);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  const collectSpot = useCallback(async (id: string) => {
+    setSpots((prev) => {
+      const updated = prev.map((s) =>
+        s.id === id ? { ...s, collected: true, collectedAt: Date.now() } : s
+      );
+      const collectedIds = updated
+        .filter((s) => s.collected)
+        .map((s) => s.id);
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(collectedIds));
+      return updated;
+    });
   }, []);
 
-  const collectSpot = useCallback(
-    (id: string) => {
-      const updated = spots.map((s) =>
-        s.id === id ? { ...s, collected: true } : s
-      );
-      saveSpots(updated);
-    },
-    [spots, saveSpots]
-  );
-
-  const resetSpots = useCallback(() => {
-    saveSpots(INITIAL_SPOTS);
-  }, [saveSpots]);
-
   const distanceTo = useCallback(
-    (spot: Spot): number | null => {
-      if (!userLocation) return null;
-      return getDistance(userLocation, spot);
+    (spot: Spot): number => {
+      if (!userLocation) return Infinity;
+      return haversineDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        spot.latitude,
+        spot.longitude
+      );
     },
     [userLocation]
   );
 
   const isNearby = useCallback(
-    (spot: Spot): boolean => {
-      if (!userLocation) return false;
-      return getDistance(userLocation, spot) <= spot.radius;
-    },
-    [userLocation]
+    (spot: Spot): boolean => distanceTo(spot) <= COLLECTION_RADIUS_METERS,
+    [distanceTo]
   );
 
   const collectedCount = spots.filter((s) => s.collected).length;
 
   return (
-    <SpotContext.Provider
+    <SpotsContext.Provider
       value={{
         spots,
+        collectSpot,
         collectedCount,
-        userLocation,
         setUserLocation,
+        userLocation,
         isNearby,
         distanceTo,
-        collectSpot,
-        resetSpots,
       }}
     >
       {children}
-    </SpotContext.Provider>
+    </SpotsContext.Provider>
   );
 }
 
-export function useSpots() {
-  const ctx = useContext(SpotContext);
-  if (!ctx) throw new Error("useSpots must be used within SpotProvider");
+export function useSpots(): SpotsContextValue {
+  const ctx = useContext(SpotsContext);
+  if (!ctx) throw new Error("useSpots must be used inside SpotProvider");
   return ctx;
 }
