@@ -254,29 +254,16 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Color legend — native only */}
+      {/* User avatar — top left */}
       {isNative && (
-        <View style={[styles.legend, { bottom: 24 + bottomInset }]}>
-          {(["purple", "orange", "green"] as const).map((color) => {
-            const count = spots.filter(
-              (s) => s.color === color && !s.collected
-            ).length;
-            return (
-              <View key={color} style={styles.legendItem}>
-                <View
-                  style={[
-                    styles.legendDot,
-                    {
-                      backgroundColor:
-                        Colors.spots[color as keyof typeof Colors.spots],
-                    },
-                  ]}
-                />
-                <Text style={styles.legendText}>{count}</Text>
-              </View>
-            );
-          })}
-        </View>
+        <Pressable
+          style={[styles.avatarBtn, { top: topInset + 12 }]}
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+        >
+          <View style={styles.avatarInner}>
+            <MaterialCommunityIcons name="account" size={26} color="#fff" />
+          </View>
+        </Pressable>
       )}
 
       <SpotBottomSheet
@@ -372,29 +359,25 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  legend: {
+  avatarBtn: {
     position: "absolute",
     left: 16,
-    flexDirection: "row",
-    gap: 8,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
-    zIndex: 5,
+    zIndex: 10,
   },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.primary,
-    fontFamily: "Inter_600SemiBold",
+  avatarInner: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 2.5,
+    borderColor: "#fff",
   },
   spotCard: {
     backgroundColor: "#fff",
