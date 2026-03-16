@@ -95,6 +95,7 @@ export default function MapScreen() {
   const [walletVisible, setWalletVisible] = useState(false);
   const mapRef = useRef<any>(null);
   const collectBounce = useRef(new Animated.Value(1)).current;
+  const [userLocation, setUserLocation] = useState<Region | null>(null);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -102,15 +103,14 @@ export default function MapScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === "granted") {
         const loc = await Location.getCurrentPositionAsync({});
-        mapRef.current?.animateToRegion(
-          {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08,
-          },
-          800
-        );
+        const region: Region = {
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.08,
+          longitudeDelta: 0.08,
+        };
+        setUserLocation(region);
+        mapRef.current?.animateToRegion(region, 800);
       }
     })();
   }, []);
@@ -144,9 +144,31 @@ export default function MapScreen() {
     setWalletVisible(true);
   }, []);
 
-  const handleCenterMap = useCallback(() => {
-    mapRef.current?.animateToRegion(SAO_PAULO_REGION, 600);
-  }, []);
+  const handleCenterMap = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (userLocation) {
+      mapRef.current?.animateToRegion(userLocation, 600);
+    } else {
+      // Try to get location on demand if not yet available
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({});
+          const region: Region = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            latitudeDelta: 0.08,
+            longitudeDelta: 0.08,
+          };
+          setUserLocation(region);
+          mapRef.current?.animateToRegion(region, 600);
+        }
+      } catch {
+        // Fall back to São Paulo if location unavailable
+        mapRef.current?.animateToRegion(SAO_PAULO_REGION, 600);
+      }
+    }
+  }, [userLocation]);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
