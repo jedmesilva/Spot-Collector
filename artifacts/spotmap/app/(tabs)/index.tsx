@@ -93,7 +93,7 @@ function WebSpotCard({
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { spots, collectSpot, collectedCount, setUserLocation, userLocation } = useSpots();
+  const { spots, collectSpot, collectedCount, setUserLocation, userLocation, isNearby } = useSpots();
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [walletVisible, setWalletVisible] = useState(false);
   const mapRef = useRef<any>(null);
@@ -215,7 +215,12 @@ export default function MapScreen() {
           }}
         >
           {spots.map((spot) => (
-            <SpotMarker key={spot.id} spot={spot} onPress={handleSpotPress} />
+            <SpotMarker
+              key={spot.id}
+              spot={spot}
+              nearby={isNearby(spot)}
+              onPress={handleSpotPress}
+            />
           ))}
         </MapView>
       ) : (
