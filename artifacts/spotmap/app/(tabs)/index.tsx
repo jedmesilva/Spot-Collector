@@ -106,8 +106,8 @@ export default function MapScreen() {
         const region: Region = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
-          latitudeDelta: 0.08,
-          longitudeDelta: 0.08,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
         };
         setUserLocation(region);
         mapRef.current?.animateToRegion(region, 800);
@@ -157,8 +157,8 @@ export default function MapScreen() {
           const region: Region = {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
           };
           setUserLocation(region);
           mapRef.current?.animateToRegion(region, 600);
