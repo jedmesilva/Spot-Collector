@@ -242,25 +242,10 @@ export default function MapScreen() {
               Escaneie o QR code no Expo Go para explorar o mapa ao vivo
             </Text>
           </View>
-          {spots.length === 0 ? (
-            <View style={styles.mapHint}>
-              <MaterialCommunityIcons
-                name="map-marker-question"
-                size={36}
-                color={Colors.accent}
-              />
-              <Text style={styles.mapHintText}>
-                Os spots são gerados ao redor da sua localização.{"\n"}Abra no Expo Go para ver o mapa completo.
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.sectionTitle}>Todos os Spots</Text>
-              {spots.map((spot) => (
-                <WebSpotCard key={spot.id} spot={spot} onPress={handleSpotPress} />
-              ))}
-            </>
-          )}
+          <Text style={styles.sectionTitle}>Todos os Spots</Text>
+          {spots.map((spot) => (
+            <WebSpotCard key={spot.id} spot={spot} onPress={handleSpotPress} />
+          ))}
         </ScrollView>
       )}
 
