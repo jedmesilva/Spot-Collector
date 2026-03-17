@@ -80,10 +80,11 @@ export function SpotMarker({ spot, nearby, onPress }: SpotMarkerProps) {
 
 const styles = StyleSheet.create({
   outer: {
-    width: 46,
-    height: 46,
+    width: 56,
+    height: 56,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "visible",
   },
   ring: {
     width: 46,
