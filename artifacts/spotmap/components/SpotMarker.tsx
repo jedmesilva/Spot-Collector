@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { Marker } from "react-native-maps";
 
@@ -27,7 +27,7 @@ interface SpotMarkerProps {
   onPress: (spot: Spot) => void;
 }
 
-function SpotPinView({ spot, nearby }: SpotMarkerProps) {
+function SpotPinView({ spot, nearby }: Pick<SpotMarkerProps, "spot" | "nearby">) {
   const color = SPOT_COLOR_MAP[spot.color] ?? Colors.accent;
   const iconName: keyof typeof MaterialCommunityIcons.glyphMap = spot.collected
     ? "check"
@@ -35,51 +35,74 @@ function SpotPinView({ spot, nearby }: SpotMarkerProps) {
       ? (TYPE_ICON_MAP[spot.type] ?? "help-circle")
       : "lock";
 
-  const borderColor = spot.collected ? "#C0C0C8" : nearby ? color : "#C0C0C8";
-  const innerBg = spot.collected ? "#C0C0C8" : nearby ? color : "#C0C0C8";
+  const ringColor = spot.collected ? "#B0B0BC" : nearby ? color : "#B0B0BC";
+  const innerBg = spot.collected ? "#B0B0BC" : nearby ? color : "#B0B0BC";
 
   return (
-    <View style={[styles.outer, { borderColor, opacity: spot.collected ? 0.45 : 1 }]}>
-      <View style={[styles.inner, { backgroundColor: innerBg }]}>
-        <MaterialCommunityIcons name={iconName} size={16} color="#FFFFFF" />
+    // collapsable={false} is required on Android to prevent view recycling that hides markers
+    <View collapsable={false} style={styles.outer}>
+      <View
+        collapsable={false}
+        style={[
+          styles.ring,
+          { borderColor: ringColor, opacity: spot.collected ? 0.5 : 1 },
+        ]}
+      >
+        <View collapsable={false} style={[styles.inner, { backgroundColor: innerBg }]}>
+          <MaterialCommunityIcons name={iconName} size={16} color="#FFFFFF" />
+        </View>
       </View>
     </View>
   );
 }
 
-export const SpotMarker = React.memo(function SpotMarker(props: SpotMarkerProps) {
+export function SpotMarker({ spot, nearby, onPress }: SpotMarkerProps) {
   if (Platform.OS === "web") return null;
+
+  // tracksViewChanges must briefly be true so Android renders the custom view,
+  // then we set it false for performance
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setTracks(false), 500);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <Marker
-      coordinate={{ latitude: props.spot.latitude, longitude: props.spot.longitude }}
-      onPress={() => props.onPress(props.spot)}
-      tracksViewChanges={false}
+      coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
+      onPress={() => onPress(spot)}
+      tracksViewChanges={tracks}
     >
-      <SpotPinView {...props} />
+      <SpotPinView spot={spot} nearby={nearby} />
     </Marker>
   );
-});
+}
 
 const styles = StyleSheet.create({
   outer: {
     width: 46,
     height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ring: {
+    width: 46,
+    height: 46,
     borderRadius: 23,
     borderWidth: 2.5,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "rgba(255,255,255,0.96)",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
   },
   inner: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
