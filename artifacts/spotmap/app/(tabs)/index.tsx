@@ -116,7 +116,7 @@ export default function MapScreen() {
       };
       setUserLocation(loc);
       mapRef.current?.animateToRegion(
-        { ...loc, latitudeDelta: 0.018, longitudeDelta: 0.018 },
+        { ...loc, latitudeDelta: 0.025, longitudeDelta: 0.025 },
         800
       );
 
@@ -173,7 +173,7 @@ export default function MapScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (userLocation) {
       mapRef.current?.animateToRegion(
-        { ...userLocation, latitudeDelta: 0.018, longitudeDelta: 0.018 },
+        { ...userLocation, latitudeDelta: 0.025, longitudeDelta: 0.025 },
         600
       );
     } else {
@@ -184,8 +184,8 @@ export default function MapScreen() {
           const region = {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
-            latitudeDelta: 0.018,
-            longitudeDelta: 0.018,
+            latitudeDelta: 0.025,
+            longitudeDelta: 0.025,
           };
           setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
           mapRef.current?.animateToRegion(region, 600);

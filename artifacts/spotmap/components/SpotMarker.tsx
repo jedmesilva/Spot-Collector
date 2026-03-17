@@ -72,6 +72,7 @@ export function SpotMarker({ spot, nearby, onPress }: SpotMarkerProps) {
       coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
       onPress={() => onPress(spot)}
       tracksViewChanges={tracks}
+      anchor={{ x: 0.5, y: 0.5 }}
     >
       <SpotPinView spot={spot} nearby={nearby} />
     </Marker>
