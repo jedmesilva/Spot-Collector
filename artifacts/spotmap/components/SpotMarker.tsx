@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import { Marker } from "react-native-maps";
-import Svg, { G, Path } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 
 import Colors from "@/constants/colors";
 import { Spot } from "@/context/SpotContext";
@@ -28,26 +28,21 @@ interface SpotMarkerProps {
   onPress: (spot: Spot) => void;
 }
 
-// ─── Pin geometry ──────────────────────────────────────────────────────────────
-const W = 40;          // total SVG width
-const H = 54;          // total SVG height
-const CX = W / 2;      // 20 — pin horizontal center
-const R = 16;          // radius of the circular head
-const HEAD_CY = R + 1; // 17 — y-center of the head circle
+// Exact Google Maps / Material Design "place" pin path
+// Original viewBox "0 0 24 24", pin occupies x:5-19, y:2-22
+// We use viewBox "4 1 16 22" to crop tightly, rendered at 36×50
+const PIN_PATH =
+  "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z";
 
-// Outer teardrop (white border + shadow base)
-function pinPath(cx: number, headCy: number, r: number, tipY: number) {
-  return (
-    `M ${cx} ${headCy - r} ` +
-    `A ${r} ${r} 0 1 1 ${cx - 0.001} ${headCy - r} ` +
-    `Q ${cx + r * 1.1} ${headCy + r * 0.9} ${cx} ${tipY} ` +
-    `Q ${cx - r * 1.1} ${headCy + r * 0.9} ${cx} ${headCy - r} Z`
-  );
-}
-
-const BORDER_PATH = pinPath(CX, HEAD_CY, R + 2, H - 2);      // white border
-const FILL_PATH   = pinPath(CX, HEAD_CY, R,     H - 5);      // coloured fill
-const SHADOW_PATH = pinPath(CX, HEAD_CY, R + 2, H - 2);      // drop shadow
+// Circle head center in the original coordinate space → (12, 9), radius ≈ 7
+// In our viewBox "4 1 16 22" rendered at 36×50:
+//   x: (12-4)/16 * 36 = 18,  y: (9-1)/22 * 50 ≈ 18
+//   radius: 7/16 * 36 ≈ 15.75
+const ICON_CX = 18;
+const ICON_CY = 18;
+const SVG_W = 36;
+const SVG_H = 50;
+const VIEWBOX = "4 1 16 22";
 
 function spotFill(spot: Spot, nearby: boolean) {
   if (spot.collected) return "#BDBDBD";
@@ -70,13 +65,9 @@ export function SpotMarker({ spot, nearby, onPress }: SpotMarkerProps) {
     return () => clearTimeout(t);
   }, []);
 
-  const fill = spotFill(spot, nearby);
-  const icon = spotIcon(spot, nearby);
-
-  // Icon position: centred in the circular head of the pin
-  const iconSize = 15;
-  const iconTop  = HEAD_CY - iconSize / 2;
-  const iconLeft = CX - iconSize / 2;
+  const fill  = spotFill(spot, nearby);
+  const icon  = spotIcon(spot, nearby);
+  const iconSize = 14;
 
   return (
     <Marker
@@ -85,26 +76,53 @@ export function SpotMarker({ spot, nearby, onPress }: SpotMarkerProps) {
       tracksViewChanges={tracks}
       anchor={{ x: 0.5, y: 1.0 }}
     >
-      {/* collapsable=false prevents Android from recycling this View and hiding the marker */}
-      <View collapsable={false} style={{ width: W, height: H }}>
-        {/* SVG pin shape */}
-        <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-          {/* Drop shadow */}
-          <G transform="translate(1.5, 3)">
-            <Path d={SHADOW_PATH} fill="rgba(0,0,0,0.20)" />
-          </G>
-          {/* White border */}
-          <Path d={BORDER_PATH} fill="white" />
-          {/* Coloured fill */}
-          <Path d={FILL_PATH} fill={fill} />
+      {/* Single View with collapsable=false prevents Android from hiding custom markers */}
+      <View
+        collapsable={false}
+        style={{ width: SVG_W, height: SVG_H }}
+      >
+        {/* Pin SVG — shadow layer */}
+        <Svg
+          width={SVG_W}
+          height={SVG_H}
+          viewBox={VIEWBOX}
+          style={{ position: "absolute", top: 2, left: 1 }}
+        >
+          <Path d={PIN_PATH} fill="rgba(0,0,0,0.22)" />
         </Svg>
 
-        {/* Icon layer — absolutely positioned over the circle head */}
+        {/* Pin SVG — white border */}
+        <Svg
+          width={SVG_W + 4}
+          height={SVG_H + 4}
+          viewBox="3.2 0.2 17.6 23.6"
+          style={{ position: "absolute", top: -2, left: -2 }}
+        >
+          <Path d={PIN_PATH} fill="white" />
+        </Svg>
+
+        {/* Pin SVG — coloured fill */}
+        <Svg
+          width={SVG_W}
+          height={SVG_H}
+          viewBox={VIEWBOX}
+          style={{ position: "absolute", top: 0, left: 0 }}
+        >
+          <Path d={PIN_PATH} fill={fill} />
+          {/* Small translucent inner circle for depth */}
+          <Circle cx={12} cy={9} r={2.8} fill="rgba(255,255,255,0.3)" />
+        </Svg>
+
+        {/* Icon centred over the circular head */}
         <MaterialCommunityIcons
           name={icon}
           size={iconSize}
           color="#fff"
-          style={{ position: "absolute", top: iconTop, left: iconLeft }}
+          style={{
+            position: "absolute",
+            top: ICON_CY - iconSize / 2,
+            left: ICON_CX - iconSize / 2,
+          }}
         />
       </View>
     </Marker>
