@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Platform, View } from "react-native";
 import { Marker } from "react-native-maps";
+import Svg, { G, Path } from "react-native-svg";
 
 import Colors from "@/constants/colors";
 import { Spot } from "@/context/SpotContext";
@@ -27,85 +28,85 @@ interface SpotMarkerProps {
   onPress: (spot: Spot) => void;
 }
 
-function SpotPinView({ spot, nearby }: Pick<SpotMarkerProps, "spot" | "nearby">) {
-  const color = SPOT_COLOR_MAP[spot.color] ?? Colors.accent;
-  const iconName: keyof typeof MaterialCommunityIcons.glyphMap = spot.collected
-    ? "check"
-    : nearby
-      ? (TYPE_ICON_MAP[spot.type] ?? "help-circle")
-      : "lock";
+// ─── Pin geometry ──────────────────────────────────────────────────────────────
+const W = 40;          // total SVG width
+const H = 54;          // total SVG height
+const CX = W / 2;      // 20 — pin horizontal center
+const R = 16;          // radius of the circular head
+const HEAD_CY = R + 1; // 17 — y-center of the head circle
 
-  const ringColor = spot.collected ? "#B0B0BC" : nearby ? color : "#B0B0BC";
-  const innerBg = spot.collected ? "#B0B0BC" : nearby ? color : "#B0B0BC";
-
+// Outer teardrop (white border + shadow base)
+function pinPath(cx: number, headCy: number, r: number, tipY: number) {
   return (
-    // collapsable={false} is required on Android to prevent view recycling that hides markers
-    <View collapsable={false} style={styles.outer}>
-      <View
-        collapsable={false}
-        style={[
-          styles.ring,
-          { borderColor: ringColor, opacity: spot.collected ? 0.5 : 1 },
-        ]}
-      >
-        <View collapsable={false} style={[styles.inner, { backgroundColor: innerBg }]}>
-          <MaterialCommunityIcons name={iconName} size={16} color="#FFFFFF" />
-        </View>
-      </View>
-    </View>
+    `M ${cx} ${headCy - r} ` +
+    `A ${r} ${r} 0 1 1 ${cx - 0.001} ${headCy - r} ` +
+    `Q ${cx + r * 1.1} ${headCy + r * 0.9} ${cx} ${tipY} ` +
+    `Q ${cx - r * 1.1} ${headCy + r * 0.9} ${cx} ${headCy - r} Z`
   );
+}
+
+const BORDER_PATH = pinPath(CX, HEAD_CY, R + 2, H - 2);      // white border
+const FILL_PATH   = pinPath(CX, HEAD_CY, R,     H - 5);      // coloured fill
+const SHADOW_PATH = pinPath(CX, HEAD_CY, R + 2, H - 2);      // drop shadow
+
+function spotFill(spot: Spot, nearby: boolean) {
+  if (spot.collected) return "#BDBDBD";
+  if (!nearby) return "#9E9E9E";
+  return SPOT_COLOR_MAP[spot.color] ?? Colors.accent;
+}
+
+function spotIcon(spot: Spot, nearby: boolean): keyof typeof MaterialCommunityIcons.glyphMap {
+  if (spot.collected) return "check";
+  if (!nearby) return "lock";
+  return TYPE_ICON_MAP[spot.type] ?? "star";
 }
 
 export function SpotMarker({ spot, nearby, onPress }: SpotMarkerProps) {
   if (Platform.OS === "web") return null;
 
-  // tracksViewChanges must briefly be true so Android renders the custom view,
-  // then we set it false for performance
   const [tracks, setTracks] = useState(true);
   useEffect(() => {
-    const t = setTimeout(() => setTracks(false), 500);
+    const t = setTimeout(() => setTracks(false), 800);
     return () => clearTimeout(t);
   }, []);
+
+  const fill = spotFill(spot, nearby);
+  const icon = spotIcon(spot, nearby);
+
+  // Icon position: centred in the circular head of the pin
+  const iconSize = 15;
+  const iconTop  = HEAD_CY - iconSize / 2;
+  const iconLeft = CX - iconSize / 2;
 
   return (
     <Marker
       coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
       onPress={() => onPress(spot)}
       tracksViewChanges={tracks}
-      anchor={{ x: 0.5, y: 0.5 }}
+      anchor={{ x: 0.5, y: 1.0 }}
     >
-      <SpotPinView spot={spot} nearby={nearby} />
+      {/* collapsable=false prevents Android from recycling this View and hiding the marker */}
+      <View collapsable={false} style={{ width: W, height: H }}>
+        {/* SVG pin shape */}
+        <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+          {/* Drop shadow */}
+          <G transform="translate(1.5, 3)">
+            <Path d={SHADOW_PATH} fill="rgba(0,0,0,0.20)" />
+          </G>
+          {/* White border */}
+          <Path d={BORDER_PATH} fill="white" />
+          {/* Coloured fill */}
+          <Path d={FILL_PATH} fill={fill} />
+        </Svg>
+
+        {/* Icon layer — absolutely positioned over the circle head */}
+        <MaterialCommunityIcons
+          name={icon}
+          size={iconSize}
+          color="#fff"
+          style={{ position: "absolute", top: iconTop, left: iconLeft }}
+        />
+      </View>
     </Marker>
   );
 }
-
-const styles = StyleSheet.create({
-  outer: {
-    width: 56,
-    height: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "visible",
-  },
-  ring: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 2.5,
-    backgroundColor: "rgba(255,255,255,0.96)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  inner: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
